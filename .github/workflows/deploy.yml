@@ -15,10 +15,22 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/github-actions-deploy
           chmod 600 ~/.ssh/github-actions-deploy
 
+      - name: Test SSH connection
+        run: |
+          echo "Connecting as user: ${{ secrets.SERVER_USER }}"
+          echo "Connecting to IPv6 address: ${{ secrets.SERVER_HOST }}"
+          ssh -6 \
+            -i ~/.ssh/github-actions-deploy \
+            -p 22 \
+            -o StrictHostKeyChecking=no \
+            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
+            "echo SSH connection successful"
+
       - name: Deploy to server
         run: |
           ssh -6 \
             -i ~/.ssh/github-actions-deploy \
+            -p 22 \
             -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
             "cd ~/little-guy && ./deploy.sh"
