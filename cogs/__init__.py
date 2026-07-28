@@ -1,0 +1,1 @@
+# Establishes the cogs as a package, allowing for the import of individual cog modules.
