@@ -2,13 +2,23 @@ name: Deploy Bot
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/github-actions-deploy
+          chmod 600 ~/.ssh/github-actions-deploy
+
       - name: Deploy to server
-        run: echo "Deployment will go here"
+        run: |
+          ssh -6 \
+            -i ~/.ssh/github-actions-deploy \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "cd ~/little-guy && ./deploy.sh"
