@@ -248,6 +248,19 @@ class BumpReminders(commands.Cog):
                 reminder_time=reminder_time
             )
 
+            confirmation_embed = discord.Embed(
+                title="⏰ Disboard Reminder Set",
+                description=(
+                    "I'll remind you the server can be bumped again in **2 hours**."
+                ),
+                color=discord.Color.blurple(),
+            )
+
+            await message.channel.send(
+                content=f"<#{self.reminder_user_id}>",
+                embed=confirmation_embed
+            )
+
             print(
                 "Disboard reminder scheduled for "
                 f"{reminder_time.isoformat()}"
@@ -276,6 +289,19 @@ class BumpReminders(commands.Cog):
                 channel_id=message.channel.id,
                 service="carlbot",
                 reminder_time=reminder_time
+            )
+
+            confirmation_embed = discord.Embed(
+                title="⏰ Carl-bot Reminder Set",
+                description=(
+                    "I'll remind you the server can be bumped again in **6 hours**."
+                ),
+                color=discord.Color.blurple(),
+            )
+
+            await message.channel.send(
+                content=f"<#{self.reminder_user_id}>",
+                embed=confirmation_embed
             )
 
             print(
