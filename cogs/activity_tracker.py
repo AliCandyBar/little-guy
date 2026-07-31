@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import discord
@@ -8,7 +9,10 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 
-DATABASE_PATH = "activity.db"
+DATA_FOLDER = Path("data")
+DATA_FOLDER.mkdir(exist_ok=True)
+
+DATABASE_PATH = DATA_FOLDER / "activity.db"
 
 
 class ActivityTracker(commands.Cog):
