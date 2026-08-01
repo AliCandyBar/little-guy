@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -141,6 +142,78 @@ class BumpReminders(commands.Cog):
             phrase in text
             for phrase in phrases
         )
+
+    @staticmethod
+    def parse_cooldown(text: str) -> timedelta | None:
+        """
+        Finds durations such as:
+        5 hours
+        2 hours and 30 minutes
+        45 minutes
+        1 hour 10 minutes and 20 seconds
+        """
+        matches = re.findall(
+            r"(\d+)\s*"
+            r"(days?|hours?|hrs?|minutes?|mins?|seconds?|secs?)",
+            text.lower()
+        )
+
+        if not matches:
+            return None
+
+        days = 0
+        hours = 0
+        minutes = 0
+        seconds = 0
+
+        for amount_text, unit in matches:
+            amount = int(amount_text)
+
+            if unit.startswith("day"):
+                days += amount
+            elif unit.startswith("hour") or unit.startswith("hr"):
+                hours += amount
+            elif unit.startswith("minute") or unit.startswith("min"):
+                minutes += amount
+            elif unit.startswith("second") or unit.startswith("sec"):
+                seconds += amount
+
+            cooldown = timedelta(
+                days=days,
+                hours=hours,
+                minutes=minutes,
+                seconds=seconds
+            )
+
+            if cooldown.total_seconds() <= 0:
+                return None
+
+            return cooldown
+
+    @staticmethod
+    def format_cooldown(cooldown: timedelta) -> str:
+        total_seconds = int(cooldown.total_seconds())
+        days, remainder = divmod(total_seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        parts = []
+
+        if days > 0:
+            parts.append(f"{days} day{'s' if days != 1 else ''}")
+
+        if hours > 0:
+            parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+
+        if minutes > 0:
+            parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+
+        if seconds > 0:
+            parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+        return " and ".join(parts)
+
+            
 
     # =========================================================
     # Reminder database methods
@@ -313,15 +386,53 @@ class BumpReminders(commands.Cog):
 
         if message.author.id == self.carlbot_bot_id:
 
+            cooldown = self.parse_cooldown(message_text)
 
-            # Debugging output to verify that the author ID and message content are being checked correctly
-            # print("Carl-bot author matched.")
-            # print(f"Author ID: {message.author.id}")
-            # print(f"Raw content: {message.content!r}")
-            # print(f"Embeds: {message.embeds!r}")
-            # print(f"Components: {message.components!r}")
-            # print(f"Parsed text: {message_text!r}")
-            # print(f"Expected phrases: {CARLBOT_SUCCESS_PHRASES!r}")
+            cooldown_phrases = (
+                "on cooldown",
+                "this server again"
+            )
+
+            is_cooldown_message = any(
+                phrase in message_text
+                for phrase in cooldown_phrases
+            )
+
+            if is_cooldown_message and cooldown is not None:
+                reminder_time = (
+                    datetime.now(timezone.utc)
+                    + cooldown
+                )
+
+                self.save_reminder(
+                    guild_id=message.guild.id,
+                    channel_id=message.channel.id,
+                    service="carlbot",
+                    reminder_time=reminder_time
+                )
+
+                confirmation_embed = discord.Embed(
+                    title="⏰ Carl-bot Reminder Set",
+                    description=(
+                        f"I'll remind you the server can be bumped again in **{self.format_cooldown(cooldown)}**."
+                    ),
+                    color=discord.Color.blurple(),
+                )
+
+                await message.channel.send(
+                    content=f"<@&{self.reminder_role_id}>",
+                    embed=confirmation_embed,
+                    allowed_mentions=discord.AllowedMentions(
+                        roles=True,
+                        users=False,
+                        everyone=False
+                    )
+                )
+
+                print(
+                    "Carl-bot reminder scheduled for "
+                    f"{reminder_time.isoformat()}"
+                )
 
             if not self.contains_success_phrase(
                 message_text,
