@@ -68,7 +68,10 @@ class Utility(commands.Cog):
             inline=False
         )
 
-        embed.set_footer(text="Have a great day!""<:little_guy:1531757449969668147>")
+        embed.set_footer(
+            text="Have a great day!",
+            icon_url=self.bot.user.display_avatar.url
+        )
 
         await interaction.response.send_message(
             embed=embed,
