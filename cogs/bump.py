@@ -23,6 +23,7 @@ CARLBOT_SUCCESS_PHRASES = (
     "bump done",
     "bumped",
     "server bumped",
+    "You've successfully bumped this server",
 )
 
 
@@ -258,7 +259,12 @@ class BumpReminders(commands.Cog):
 
             await message.channel.send(
                 content=f"<@&{self.reminder_role_id}>",
-                embed=confirmation_embed
+                embed=confirmation_embed,
+                allowed_mentions=discord.AllowedMentions(
+                    roles=True,
+                    users=False,
+                    everyone=False
+                )
             )
 
             print(
@@ -301,7 +307,12 @@ class BumpReminders(commands.Cog):
 
             await message.channel.send(
                 content=f"<@&{self.reminder_role_id}>",
-                embed=confirmation_embed
+                embed=confirmation_embed,
+                allowed_mentions=discord.AllowedMentions(
+                    roles=True,
+                    users=False,
+                    everyone=False
+                )
             )
 
             print(
@@ -326,7 +337,7 @@ class BumpReminders(commands.Cog):
         )
 
         embed.set_footer(
-            text="Help more people discover the server!"
+            text="Time for another server bump!"
         )
 
         return embed
@@ -337,7 +348,7 @@ class BumpReminders(commands.Cog):
             description=(
                 "It has been **6 hours** since the last "
                 "successful Carl-bot bump.\n\n"
-                "The server can now be bumped again."
+                "The server can now be bumped again with `/bump`."
             ),
             color=discord.Color.gold(),
             timestamp=datetime.now(timezone.utc)

@@ -57,7 +57,7 @@ class TicketButton(discord.ui.View):
         )
 
         await channel.send(
-            f"Thank you for opening a ticket {interaction.user.mention} a {staff_role.mention} member should be with you shortly.\n"
+            f"Thank you for opening a ticket {interaction.user.mention} a member of our {staff_role.mention} team should be with you shortly.\n"
             "Please explain what you need help with."
         )
 
