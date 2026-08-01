@@ -97,8 +97,10 @@ class BumpReminders(commands.Cog):
         bump responses can be detected in either format.
         """
 
+        # Normal message content
         parts = [message.content]
 
+        # Embed content
         for embed in message.embeds:
             if embed.title:
                 parts.append(embed.title)
@@ -113,6 +115,19 @@ class BumpReminders(commands.Cog):
             if embed.footer and embed.footer.text:
                 parts.append(embed.footer.text)
 
+        # Components V2 text
+        def read_component(component):
+            if isinstance(component, discord.TextDisplay):
+                parts.append(component.content)
+            children = getattr(component, "children", None)
+
+            if children:
+                for child in children:
+                    read_component(child)
+
+        for component in message.components:
+            read_component(component)
+            
         return " ".join(
             part for part in parts if part
         ).lower()
@@ -286,6 +301,8 @@ class BumpReminders(commands.Cog):
             print("Carl-bot author matched.")
             print(f"Author ID: {message.author.id}")
             print(f"Raw content: {message.content!r}")
+            print(f"Embeds: {message.embeds!r}")
+            print(f"Components: {message.components!r}")
             print(f"Parsed text: {message_text!r}")
             print(f"Expected phrases: {CARLBOT_SUCCESS_PHRASES!r}")
 
