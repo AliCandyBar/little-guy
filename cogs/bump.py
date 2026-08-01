@@ -237,6 +237,23 @@ class BumpReminders(commands.Cog):
         self,
         message: discord.Message
     ):
+        await self.check_bump_message(message)
+
+    @commands.Cog.listener()
+    async def on_message_edit(
+        self,
+        before: discord.Message,
+        after: discord.Message
+    ):
+        print("MESSAGE EDIT DETECTED", flush=True)
+        
+        await self.check_bump_message(after)
+
+    async def check_bump_message(
+            self,
+            message: discord.Message
+    ):
+        
         if message.guild is None:
             return
 
