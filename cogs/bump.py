@@ -21,10 +21,8 @@ DISBOARD_SUCCESS_PHRASES = (
 )
 
 CARLBOT_SUCCESS_PHRASES = (
-    "bump done",
     "bumped",
-    "bump",
-    "server bumped",
+    "bumped this server",
     "You've successfully bumped this server",
 )
 
