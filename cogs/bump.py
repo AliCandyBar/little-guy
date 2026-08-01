@@ -245,8 +245,8 @@ class BumpReminders(commands.Cog):
         before: discord.Message,
         after: discord.Message
     ):
-        print("MESSAGE EDIT DETECTED", flush=True)
-        
+#        print("MESSAGE EDIT DETECTED", flush=True)
+
         await self.check_bump_message(after)
 
     async def check_bump_message(
@@ -315,13 +315,13 @@ class BumpReminders(commands.Cog):
 
 
             # Debugging output to verify that the author ID and message content are being checked correctly
-            print("Carl-bot author matched.")
-            print(f"Author ID: {message.author.id}")
-            print(f"Raw content: {message.content!r}")
-            print(f"Embeds: {message.embeds!r}")
-            print(f"Components: {message.components!r}")
-            print(f"Parsed text: {message_text!r}")
-            print(f"Expected phrases: {CARLBOT_SUCCESS_PHRASES!r}")
+            # print("Carl-bot author matched.")
+            # print(f"Author ID: {message.author.id}")
+            # print(f"Raw content: {message.content!r}")
+            # print(f"Embeds: {message.embeds!r}")
+            # print(f"Components: {message.components!r}")
+            # print(f"Parsed text: {message_text!r}")
+            # print(f"Expected phrases: {CARLBOT_SUCCESS_PHRASES!r}")
 
             if not self.contains_success_phrase(
                 message_text,
