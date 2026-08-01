@@ -22,6 +22,7 @@ DISBOARD_SUCCESS_PHRASES = (
 CARLBOT_SUCCESS_PHRASES = (
     "bump done",
     "bumped",
+    "bump",
     "server bumped",
     "You've successfully bumped this server",
 )
@@ -279,11 +280,28 @@ class BumpReminders(commands.Cog):
         # -----------------------------
 
         if message.author.id == self.carlbot_bot_id:
+
+
+            # Debugging output to verify that the author ID and message content are being checked correctly
+            print("Carl-bot author matched.")
+            print(f"Author ID: {message.author.id}")
+            print(f"Raw content: {message.content!r}")
+            print(f"Parsed text: {message_text!r}")
+            print(f"Expected phrases: {CARLBOT_SUCCESS_PHRASES!r}")
+
             if not self.contains_success_phrase(
                 message_text,
                 CARLBOT_SUCCESS_PHRASES
             ):
+                # Debugging output to indicate that the message did not match any of the expected phrases
+                print(
+                    "Carl-bot text did not match.",
+                    f"text={message_text!r}",
+                    f"phrases={CARLBOT_SUCCESS_PHRASES!r}"
+                )
                 return
+
+            print("Carl-bot success phrase matched.")
 
             reminder_time = (
                 datetime.now(timezone.utc)
