@@ -410,12 +410,18 @@ class BumpReminders(commands.Cog):
                     reminder_time=reminder_time
                 )
 
+                readable_time = self.format_cooldown(
+                    cooldown
+                )
+
                 confirmation_embed = discord.Embed(
                     title="⏰ Carl-bot Reminder Set",
                     description=(
-                        f"I'll remind you the server can be bumped again in **{self.format_cooldown(cooldown)}**."
+                        f"Carl-bot is currently on cooldown.\n\n"
+                        f"I'll remind you to bump again in"
+                        f"**{readable_time}**."
                     ),
-                    color=discord.Color.blurple(),
+                    color=discord.Color.gold(),
                 )
 
                 await message.channel.send(
