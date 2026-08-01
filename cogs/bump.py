@@ -38,8 +38,8 @@ class BumpReminders(commands.Cog):
             "CARLBOT_BOT_ID"
         )
 
-        self.reminder_user_id = self.get_required_id(
-            "BUMP_REMINDER_USER_ID"
+        self.reminder_role_id = self.get_required_id(
+            "BUMP_REMINDER_ROLE_ID"
         )
 
         DATA_FOLDER.mkdir(exist_ok=True)
@@ -257,7 +257,7 @@ class BumpReminders(commands.Cog):
             )
 
             await message.channel.send(
-                content=f"<#{self.reminder_user_id}>",
+                content=f"<@&{self.reminder_role_id}>",
                 embed=confirmation_embed
             )
 
@@ -300,7 +300,7 @@ class BumpReminders(commands.Cog):
             )
 
             await message.channel.send(
-                content=f"<#{self.reminder_user_id}>",
+                content=f"<@&{self.reminder_role_id}>",
                 embed=confirmation_embed
             )
 
@@ -390,7 +390,7 @@ class BumpReminders(commands.Cog):
 
             try:
                 await channel.send(
-                    content=f"<@{self.reminder_user_id}>",
+                    content=f"<@&{self.reminder_role_id}>",
                     embed=embed
                 )
 
