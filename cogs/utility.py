@@ -248,7 +248,7 @@ class Moderation(commands.Cog):
     )
     @app_commands.describe(
         member="The member to ban",
-        delete_days="Delete 3 days of message history"
+        delete_days="Delete 3 days of message history",
         reason="Why the member is being banned"
     )
     @app_commands.guild_only()
