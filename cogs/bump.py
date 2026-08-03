@@ -456,7 +456,7 @@ class BumpReminders(commands.Cog):
                     title="⏰ Carl-bot Reminder Set",
                     description=(
                         f"Carl-bot is currently on cooldown.\n\n"
-                        f"I'll remind you to bump again in"
+                        f"I'll remind you to bump again"
                         f"**{discord.utils.format_dt(reminder_time, style='R')}**."
                     ),
                     color=discord.Color.gold(),
