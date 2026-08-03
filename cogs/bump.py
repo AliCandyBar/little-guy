@@ -439,12 +439,6 @@ class BumpReminders(commands.Cog):
         if message.author.id == self.carlbot_bot_id:
             reminder_time = self.parse_discord_timestamp(message_text)
 
-            if reminder_time is not self.contains_success_phrase(
-                message_text,
-                CARLBOT_SUCCESS_PHRASES
-            ):
-                return
-            
             if reminder_time is not None:
                 if reminder_time <= datetime.now(timezone.utc):
                     return
