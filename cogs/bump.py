@@ -142,75 +142,98 @@ class BumpReminders(commands.Cog):
             for phrase in phrases
         )
 
-    @staticmethod
-    def parse_cooldown(text: str) -> timedelta | None:
-        """
-        Finds durations such as:
-        5 hours
-        2 hours and 30 minutes
-        45 minutes
-        1 hour 10 minutes and 20 seconds
-        """
-        matches = re.findall(
-            r"(\d+)\s*"
-            r"(days?|hours?|hrs?|minutes?|mins?|seconds?|secs?)",
-            text.lower()
-        )
+    
+    # # Detects cooldown durations in Carl-bot messages and converts them to timedelta objects (plain text)
+    # @staticmethod
+    # def parse_cooldown(text: str) -> timedelta | None:
+    #     """
+    #     Finds durations such as:
+    #     5 hours
+    #     2 hours and 30 minutes
+    #     45 minutes
+    #     1 hour 10 minutes and 20 seconds
+    #     """
+    #     matches = re.findall(
+    #         r"(\d+)\s*"
+    #         r"(days?|hours?|hrs?|minutes?|mins?|seconds?|secs?)",
+    #         text.lower()
+    #     )
 
-        if not matches:
+    #     if not matches:
+    #         return None
+
+    #     days = 0
+    #     hours = 0
+    #     minutes = 0
+    #     seconds = 0
+
+    #     for amount_text, unit in matches:
+    #         amount = int(amount_text)
+
+    #         if unit.startswith("day"):
+    #             days += amount
+    #         elif unit.startswith("hour") or unit.startswith("hr"):
+    #             hours += amount
+    #         elif unit.startswith("minute") or unit.startswith("min"):
+    #             minutes += amount
+    #         elif unit.startswith("second") or unit.startswith("sec"):
+    #             seconds += amount
+
+    #         cooldown = timedelta(
+    #             days=days,
+    #             hours=hours,
+    #             minutes=minutes,
+    #             seconds=seconds
+    #         )
+
+    #         if cooldown.total_seconds() <= 0:
+    #             return None
+
+    #         return cooldown
+
+
+    # Checks for Discord timestamps like <t:16669420:R> and converts them to datetime objects.
+    @staticmethod
+    def parse_discord_timestamp(text: str) -> datetime | None:
+        """
+        Extracts a Discord timestamp such as:
+        <t:16669420:R>
+        """
+
+        match = re.search(r"<t:(\d+)(?::[a-zA-Z])?>", text)
+
+        if match is None:
             return None
 
-        days = 0
-        hours = 0
-        minutes = 0
-        seconds = 0
+        unix_timestamp = int(match.group(1))
 
-        for amount_text, unit in matches:
-            amount = int(amount_text)
+        return datetime.fromtimestamp(
+            unix_timestamp,
+            tz=timezone.utc
+        )
 
-            if unit.startswith("day"):
-                days += amount
-            elif unit.startswith("hour") or unit.startswith("hr"):
-                hours += amount
-            elif unit.startswith("minute") or unit.startswith("min"):
-                minutes += amount
-            elif unit.startswith("second") or unit.startswith("sec"):
-                seconds += amount
+    # @staticmethod
+    # def format_cooldown(cooldown: timedelta) -> str:
+    #     total_seconds = int(cooldown.total_seconds())
+    #     days, remainder = divmod(total_seconds, 86400)
+    #     hours, remainder = divmod(remainder, 3600)
+    #     minutes, seconds = divmod(remainder, 60)
 
-            cooldown = timedelta(
-                days=days,
-                hours=hours,
-                minutes=minutes,
-                seconds=seconds
-            )
+    #     parts = []
 
-            if cooldown.total_seconds() <= 0:
-                return None
+    #     if days > 0:
+    #         parts.append(f"{days} day{'s' if days != 1 else ''}")
 
-            return cooldown
+    #     if hours > 0:
+    #         parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
 
-    @staticmethod
-    def format_cooldown(cooldown: timedelta) -> str:
-        total_seconds = int(cooldown.total_seconds())
-        days, remainder = divmod(total_seconds, 86400)
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
+    #     if minutes > 0:
+    #         parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
 
-        parts = []
+    #     if seconds > 0:
+    #         parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
 
-        if days > 0:
-            parts.append(f"{days} day{'s' if days != 1 else ''}")
-
-        if hours > 0:
-            parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
-
-        if minutes > 0:
-            parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
-
-        if seconds > 0:
-            parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
-
-        return " and ".join(parts)
+    #     return " and ".join(parts)
 
             
 
@@ -226,8 +249,7 @@ class BumpReminders(commands.Cog):
         reminder_time: datetime
     ):
         """
-        Adds a reminder or replaces the previous reminder for the
-        same service in the same server.
+        Adds or replaces the reminder for a service in a guild.
         """
 
         self.database.execute(
@@ -258,6 +280,37 @@ class BumpReminders(commands.Cog):
 
         self.database.commit()
 
+
+    def get_reminder(
+        self,
+        guild_id: int,
+        service: str
+    ) -> datetime | None:
+        """
+        Returns the currently scheduled reminder time.
+        """
+
+        cursor = self.database.execute(
+            """
+            SELECT reminder_time
+            FROM bump_reminders
+            WHERE guild_id = ?
+            AND service = ?
+            """,
+            (
+                guild_id,
+                service
+            )
+        )
+
+        result = cursor.fetchone()
+
+        if result is None:
+            return None
+
+        return datetime.fromisoformat(result[0])
+
+
     def get_due_reminders(
         self,
         current_time: datetime
@@ -280,6 +333,7 @@ class BumpReminders(commands.Cog):
 
         return cursor.fetchall()
 
+
     def delete_reminder(
         self,
         guild_id: int,
@@ -290,7 +344,7 @@ class BumpReminders(commands.Cog):
             DELETE FROM bump_reminders
 
             WHERE guild_id = ?
-              AND service = ?
+            AND service = ?
             """,
             (
                 guild_id,
@@ -384,24 +438,13 @@ class BumpReminders(commands.Cog):
         # -----------------------------
 
         if message.author.id == self.carlbot_bot_id:
+            reminder_time = self.parse_discord_timestamp(message_text)
 
-            cooldown = self.parse_cooldown(message_text)
-
-            cooldown_phrases = (
-                "on cooldown",
-                "this server again"
-            )
-
-            is_cooldown_message = any(
-                phrase in message_text
-                for phrase in cooldown_phrases
-            )
-
-            if is_cooldown_message and cooldown is not None:
-                reminder_time = (
-                    datetime.now(timezone.utc)
-                    + cooldown
-                )
+            if reminder_time is not None:
+                if reminder_time <= datetime.now(timezone.utc):
+                    return
+            
+                
 
                 self.save_reminder(
                     guild_id=message.guild.id,
@@ -410,16 +453,12 @@ class BumpReminders(commands.Cog):
                     reminder_time=reminder_time
                 )
 
-                readable_time = self.format_cooldown(
-                    cooldown
-                )
-
                 confirmation_embed = discord.Embed(
                     title="⏰ Carl-bot Reminder Set",
                     description=(
                         f"Carl-bot is currently on cooldown.\n\n"
                         f"I'll remind you to bump again in"
-                        f"**{readable_time}**."
+                        f"**{discord.utils.format_dt(reminder_time, style='R')}**."
                     ),
                     color=discord.Color.gold(),
                 )
