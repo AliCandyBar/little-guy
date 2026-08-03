@@ -910,7 +910,7 @@ class ActivityTracker(commands.Cog):
 
                 active_lines.append(
                     f"**{position}.** "
-                    f"[{member.display_name}](https://discord.com/users/{member.id}) — "
+                    f"{member.mention} — "
                     f"**{message_count:,}** messages\n"
                     f"└ {comparison}"
                 )
