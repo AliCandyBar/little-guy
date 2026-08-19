@@ -20,7 +20,27 @@ class MessageLogs(commands.Cog):
 
         log_channel_id = os.getenv("MESSAGE_LOG_CHANNEL_ID")
         self.log_channel_id = int(log_channel_id) if log_channel_id else None
+        log_guild_id = os.getenv("LOG_GUILD_ID")
 
+        self.log_guild_id = (
+            int(log_guild_id)
+            if log_guild_id
+            else None
+        )
+
+    # =========================================================
+    # Discord server validation: only send logs to the Guild server
+    # =========================================================
+
+    def should_log(
+        self,
+        guild: discord.Guild | None
+    ) -> bool:
+        return (
+            guild is not None
+            and self.log_guild_id is not None
+            and guild.id == self.log_guild_id
+        )
 
 
 # Message edit and delete logging
@@ -31,6 +51,8 @@ class MessageLogs(commands.Cog):
         before: discord.Message,
         after: discord.Message
     ):
+        if not self.should_log(before.guild):
+            return
         if before.author.bot:
             return
 
@@ -92,6 +114,8 @@ class MessageLogs(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):
+        if not self.should_log(message.guild):
+            return
         if message.author.bot:
             return
 
@@ -171,6 +195,8 @@ class MessageLogs(commands.Cog):
     
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
+        if not self.should_log(member.guild):
+            return
         if self.log_channel_id is None:
             return
 
@@ -198,6 +224,8 @@ class MessageLogs(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
+        if not self.should_log(member.guild):
+            return
         if self.log_channel_id is None:
             return
 
@@ -233,6 +261,8 @@ class MessageLogs(commands.Cog):
         before: discord.Member,
         after: discord.Member
     ):
+        if not self.should_log(before.guild):
+            return
         if before.nick == after.nick:
             return
 
