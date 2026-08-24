@@ -10,6 +10,59 @@ class Utility(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    @staticmethod
+    def get_slash_commands(
+        command: app_commands.Command | app_commands.Group
+    ) -> list[app_commands.Command]:
+        """Return every invokable slash command below a tree node."""
+        if isinstance(command, app_commands.Group):
+            commands_found: list[app_commands.Command] = []
+
+            for child in command.commands:
+                commands_found.extend(
+                    Utility.get_slash_commands(child)
+                )
+
+            return commands_found
+
+        return [command]
+
+
+    @app_commands.command(
+        name="help",
+        description="Show all available bot commands."
+    )
+    async def help(self, interaction: discord.Interaction):
+        slash_commands: list[app_commands.Command] = []
+
+        for command in self.bot.tree.get_commands():
+            slash_commands.extend(
+                self.get_slash_commands(command)
+            )
+
+        command_lines = [
+            f"**/{command.qualified_name}** — {command.description}"
+            for command in sorted(
+                slash_commands,
+                key=lambda item: item.qualified_name
+            )
+        ]
+
+        embed = discord.Embed(
+            title="Little Guy Commands",
+            description="\n".join(command_lines),
+            color=discord.Color.blurple()
+        )
+
+        embed.set_footer(
+            text=f"{len(command_lines)} commands available"
+        )
+
+        await interaction.response.send_message(
+            embed=embed,
+            ephemeral=True
+        )
+
 
     # Debugging commands
     @app_commands.command(
