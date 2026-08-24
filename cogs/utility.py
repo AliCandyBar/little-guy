@@ -1,5 +1,6 @@
 # Necessary imports for the cog functionality
 import discord
+import os
 from discord import app_commands
 from discord import user
 from discord.ext import commands
@@ -69,6 +70,8 @@ class Utility(commands.Cog):
             inline=False
         )
 
+        assert self.bot.user is not None
+
         embed.set_footer(
             text="Have a great day!",
             icon_url=self.bot.user.display_avatar.url
@@ -95,7 +98,40 @@ class Moderation(commands.Cog):
             else None
         )
 
-    def is_staff(self, member: discord.Member) -> bool:
+        message_log_channel_id = os.getenv("MESSAGE_LOG_CHANNEL_ID")
+
+        self.message_log_channel_id = (
+            int(message_log_channel_id)
+            if message_log_channel_id
+            else None
+        )
+
+
+    # Establishes the log channel for message logs, if set in the environment variables
+    def get_message_log_channel(
+        self,
+        guild: discord.Guild
+    ) -> discord.TextChannel | None:
+        if self.message_log_channel_id is None:
+            return None
+
+        channel = guild.get_channel(
+            self.message_log_channel_id
+        )
+
+        if isinstance(
+            channel,
+            discord.TextChannel
+        ):
+            return channel
+
+        return None
+
+    # Check if a member has the staff role based on their roles in the guild
+    def is_staff(
+            self,
+            member: discord.Member,
+    ) -> bool:
         if self.staff_role_id is None:
             return False
 
@@ -104,6 +140,7 @@ class Moderation(commands.Cog):
             for role in member.roles
         )
 
+    # Check if a moderator can moderate a target member based on their roles and hierarchy
     def can_moderate(
         self,
         moderator: discord.Member,
@@ -171,6 +208,13 @@ class Moderation(commands.Cog):
                 ephemeral=True
             )
             return
+        
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used within a server.",
+                ephemeral=True
+            )
+            return
 
         allowed, error_message = self.can_moderate(
             moderator,
@@ -233,10 +277,14 @@ class Moderation(commands.Cog):
             inline=False
         )
 
-        await interaction.followup.send(
-            embed=embed,
-            ephemeral=True
+        log_channel = self.get_message_log_channel(
+            interaction.guild
         )
+
+        if log_channel:
+            await log_channel.send(
+                embed=embed
+            )
 
     # =========================================================
     # Ban
@@ -247,7 +295,7 @@ class Moderation(commands.Cog):
         description="Ban a member from the server."
     )
     @app_commands.describe(
-        member="The member to ban",
+        user_id="The ID of the user to ban",
         delete_days="Delete 3 days of message history",
         reason="Why the member is being banned"
     )
@@ -255,6 +303,7 @@ class Moderation(commands.Cog):
     async def ban(
         self,
         interaction: discord.Interaction,
+        user_id: str,
         member: discord.Member,
         delete_days: bool = False,
         reason: str = "No reason provided"
@@ -267,6 +316,13 @@ class Moderation(commands.Cog):
         if not self.is_staff(moderator):
             await interaction.response.send_message(
                 "This command is only available to staff.",
+                ephemeral=True
+            )
+            return
+        
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used within a server.",
                 ephemeral=True
             )
             return
@@ -293,10 +349,10 @@ class Moderation(commands.Cog):
         )
 
         delete_seconds = 259200 if delete_days else 0
-        user = discord.User
+        user_object = discord.Object(id=member.id)
         try:
             await interaction.guild.ban(
-                user,
+                user_object,
                 reason=audit_reason,
                 delete_message_seconds=delete_seconds
             )
@@ -335,19 +391,19 @@ class Moderation(commands.Cog):
             value=reason,
             inline=False
         )
-
-        await interaction.followup.send(
-            embed=embed,
-            ephemeral=True
+        
+        log_channel = self.get_message_log_channel(
+            interaction.guild
         )
 
+        if log_channel:
+            await log_channel.send(
+                embed=embed
+            )
 
-async def setup(bot: commands.Bot):
-    await bot.add_cog(
-        Moderation(bot)
-    )
 
 
 # Activate upon start-up
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utility(bot))
+    await bot.add_cog(Moderation(bot))
