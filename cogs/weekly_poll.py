@@ -90,6 +90,16 @@ class WeeklyPoll(commands.Cog):
             )
         )
 
+        self.automatic_polls_enabled = os.getenv(
+            "WEEKLY_POLL_AUTOMATIC_ENABLED",
+            "false"
+        ).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on"
+        }
+
         # =====================================================
         # Poll history
         # =====================================================
@@ -101,8 +111,10 @@ class WeeklyPoll(commands.Cog):
 
         self.create_internal_tables()
 
-        # Start automatic scheduler.
-        self.weekly_poll_scheduler.start()
+        # Automatic polls are opt-in so test deployments cannot
+        # accidentally post merely because a channel is configured.
+        if self.automatic_polls_enabled:
+            self.weekly_poll_scheduler.start()
 
     # =========================================================
     # Configuration helpers
@@ -210,55 +222,64 @@ class WeeklyPoll(commands.Cog):
     # Poll numbering
     # =========================================================
 
-    def get_next_poll_number(
+    def reserve_next_poll_number(
         self,
         guild_id: int
     ) -> int:
-        cursor = self.history.database.execute(
-            """
-            SELECT COALESCE(
-                MAX(poll_number),
-                0
+        database = self.history.database
+
+        try:
+            # Lock the write transaction so separate bot instances
+            # sharing this database cannot reserve the same number.
+            database.execute("BEGIN IMMEDIATE")
+
+            cursor = database.execute(
+                """
+                SELECT MAX(last_number)
+                FROM (
+                    SELECT COALESCE(MAX(poll_number), 0) AS last_number
+                    FROM weekly_polls
+                    WHERE guild_id = ?
+
+                    UNION ALL
+
+                    SELECT COALESCE(MAX(last_poll_number), 0)
+                    FROM poll_counters
+                    WHERE guild_id = ?
+                )
+                """,
+                (
+                    guild_id,
+                    guild_id
+                )
             )
 
-            FROM weekly_polls
+            poll_number = cursor.fetchone()[0] + 1
 
-            WHERE guild_id = ?
-            """,
-            (
-                guild_id,
+            database.execute(
+                """
+                INSERT INTO poll_counters (
+                    guild_id,
+                    last_poll_number
+                )
+                VALUES (?, ?)
+
+                ON CONFLICT (guild_id)
+                DO UPDATE SET
+                    last_poll_number = excluded.last_poll_number
+                """,
+                (
+                    guild_id,
+                    poll_number
+                )
             )
-        )
 
-        highest_number = cursor.fetchone()[0]
+            database.commit()
+            return poll_number
 
-        return highest_number + 1
-
-    def save_poll_number(
-        self,
-        guild_id: int,
-        poll_number: int
-    ):
-        self.history.database.execute(
-            """
-            INSERT INTO poll_counters (
-                guild_id,
-                last_poll_number
-            )
-            VALUES (?, ?)
-
-            ON CONFLICT (guild_id)
-            DO UPDATE SET
-                last_poll_number =
-                    excluded.last_poll_number
-            """,
-            (
-                guild_id,
-                poll_number
-            )
-        )
-
-        self.history.database.commit()
+        except Exception:
+            database.rollback()
+            raise
 
     # =========================================================
     # Automatic-run tracking
@@ -829,7 +850,7 @@ class WeeklyPoll(commands.Cog):
             # -------------------------------------------------
 
             poll_number = (
-                self.get_next_poll_number(
+                self.reserve_next_poll_number(
                     guild.id
                 )
             )
@@ -895,11 +916,6 @@ class WeeklyPoll(commands.Cog):
                 thread_id=thread.id,
 
                 generation_type=generation_type
-            )
-
-            self.save_poll_number(
-                guild_id=guild.id,
-                poll_number=poll_number
             )
 
             print(
@@ -1265,6 +1281,14 @@ class WeeklyPoll(commands.Cog):
             flush=True
         )
 
+        # Claim this week's run before doing any external work. This
+        # prevents a partial Discord failure from retrying every minute
+        # and posting duplicate polls.
+        self.mark_automatic_poll_sent(
+            guild_id=guild.id,
+            week_key=week_key
+        )
+
         try:
             poll_number = (
                 await self.generate_weekly_poll(
@@ -1282,11 +1306,6 @@ class WeeklyPoll(commands.Cog):
             )
 
             return
-
-        self.mark_automatic_poll_sent(
-            guild_id=guild.id,
-            week_key=week_key
-        )
 
         print(
             f"WEEKLY POLL: Automatic "

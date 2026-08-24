@@ -129,13 +129,11 @@ async def post_weekly_poll(
             "WEEKLY POLL: Missing permission to pin the opening message.",
             flush=True
         )
-        raise
 
     except discord.HTTPException as error:
         print(
             f"WEEKLY POLL: Failed to pin opening message: {error}",
             flush=True
         )
-        raise
 
     return poll_message, thread
