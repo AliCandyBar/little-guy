@@ -23,6 +23,7 @@ class LittleGuyBot(commands.Bot):
         await self.load_extension("cogs.activity_tracker")
         await self.load_extension("cogs.bump")
         await self.load_extension("cogs.weekly_poll")
+        await self.load_extension("cogs.guild_agent")
 
         self.add_view(TicketButton())
         synced = await self.tree.sync()
