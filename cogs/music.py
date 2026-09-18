@@ -462,7 +462,26 @@ class Music(commands.Cog):
                 await interaction.followup.send("I’m already active in another voice channel.", ephemeral=True)
                 return
         else:
-            player.voice = await member.voice.channel.connect(self_deaf=True)
+            try:
+                player.voice = await member.voice.channel.connect(self_deaf=True)
+            except RuntimeError as exc:
+                await player.disconnect()
+                missing_voice_library = "library needed" in str(exc).lower()
+                message = (
+                    "Voice support is missing from this deployment. Rebuild the bot "
+                    "with the updated requirements and try again."
+                    if missing_voice_library
+                    else "I couldn't initialize voice playback. Check the bot logs and try again."
+                )
+                await interaction.followup.send(f"⚠️ {message}", ephemeral=True)
+                return
+            except (discord.ClientException, discord.ConnectionClosed, asyncio.TimeoutError):
+                await player.disconnect()
+                await interaction.followup.send(
+                    "⚠️ I couldn't connect to that voice channel. Check my Connect and Speak permissions.",
+                    ephemeral=True,
+                )
+                return
         if not isinstance(interaction.channel, (discord.TextChannel, discord.Thread)):
             await interaction.followup.send("Use this in a server text channel.", ephemeral=True)
             return

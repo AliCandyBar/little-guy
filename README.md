@@ -10,7 +10,8 @@ bar, the upcoming queue, and matching emoji buttons.
 
 Spotify supplies metadata; playable audio is resolved from YouTube because
 Spotify does not provide full audio streams to Discord bots. The host must have
-`ffmpeg` installed, and these environment variables must be configured:
+`ffmpeg` installed. Discord's voice extras (including PyNaCl and `davey`) are
+installed through `discord.py[voice]`. These environment variables must be configured:
 
 ```text
 BOT_COMMANDS_CHANNEL_ID=123456789012345678
