@@ -17,6 +17,7 @@ installed through `discord.py[voice]`. These environment variables must be confi
 BOT_COMMANDS_CHANNEL_ID=123456789012345678
 SPOTIFY_CLIENT_ID=your_spotify_app_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_app_client_secret
+SPOTIFY_REFRESH_TOKEN=authorized_spotify_user_refresh_token
 MUSIC_VOLUME=0.5
 ```
 
@@ -25,6 +26,13 @@ optional and accepts values from 0.0 to 1.0. In the Discord developer portal,
 the bot needs Connect and Speak permissions. It stays connected when the queue
 ends, leaves after 15 idle minutes, or leaves after the voice channel has had no
 human members for five minutes.
+
+Spotify requires user OAuth for playlist contents. `SPOTIFY_REFRESH_TOKEN` must
+be issued to the Spotify account that owns or collaborates on playlists the bot
+will play, with `playlist-read-private` and `playlist-read-collaborative` scopes.
+It is optional for individual track links, but required for playlist links.
+Add `http://127.0.0.1:8888/callback` as a redirect URI in the Spotify developer
+app, then run `python scripts/spotify_refresh_token.py` once to generate it.
 
 ## Guild Agent Architect
 

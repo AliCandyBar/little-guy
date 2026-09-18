@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import os
 import random
 import re
+import threading
 import time
+import urllib.parse
+import urllib.request
 from collections import deque
 from dataclasses import dataclass, replace
 from typing import Awaitable, Callable
@@ -62,6 +67,55 @@ class Track:
     @property
     def query(self) -> str:
         return self.search_query or f"{self.title} {self.artists} audio"
+
+
+class SpotifyRefreshTokenAuth:
+    """Small Spotipy auth manager for a pre-authorized user refresh token."""
+
+    TOKEN_URL = "https://accounts.spotify.com/api/token"
+
+    def __init__(self, client_id: str, client_secret: str, refresh_token: str) -> None:
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.refresh_token = refresh_token
+        self.access_token: str | None = None
+        self.expires_at = 0.0
+        self.lock = threading.Lock()
+
+    def get_access_token(self, as_dict: bool = False, **_: object) -> str | dict:
+        with self.lock:
+            if not self.access_token or time.monotonic() >= self.expires_at - 60:
+                credentials = base64.b64encode(
+                    f"{self.client_id}:{self.client_secret}".encode()
+                ).decode()
+                body = urllib.parse.urlencode(
+                    {
+                        "grant_type": "refresh_token",
+                        "refresh_token": self.refresh_token,
+                    }
+                ).encode()
+                request = urllib.request.Request(
+                    self.TOKEN_URL,
+                    data=body,
+                    headers={
+                        "Authorization": f"Basic {credentials}",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                )
+                with urllib.request.urlopen(request, timeout=15) as response:
+                    token_info = json.load(response)
+                self.access_token = token_info["access_token"]
+                self.expires_at = time.monotonic() + int(token_info.get("expires_in", 3600))
+                self.refresh_token = token_info.get("refresh_token", self.refresh_token)
+
+            if as_dict:
+                return {
+                    "access_token": self.access_token,
+                    "token_type": "Bearer",
+                    "expires_at": int(time.time() + max(0, self.expires_at - time.monotonic())),
+                    "refresh_token": self.refresh_token,
+                }
+            return self.access_token
 
 
 class MusicControls(discord.ui.View):
@@ -349,10 +403,14 @@ class Music(commands.Cog):
         self.spotify = None
         client_id = os.getenv("SPOTIFY_CLIENT_ID")
         client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+        refresh_token = os.getenv("SPOTIFY_REFRESH_TOKEN")
         if client_id and client_secret and spotipy and SpotifyClientCredentials:
-            self.spotify = spotipy.Spotify(
-                auth_manager=SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+            auth_manager = (
+                SpotifyRefreshTokenAuth(client_id, client_secret, refresh_token)
+                if refresh_token
+                else SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
             )
+            self.spotify = spotipy.Spotify(auth_manager=auth_manager)
         self.ytdl_options = {
             "format": "bestaudio/best",
             "quiet": True,
@@ -499,7 +557,18 @@ class Music(commands.Cog):
         try:
             tracks = await self.spotify_tracks(link, interaction.user.display_name)
         except Exception as exc:
-            await interaction.followup.send(f"⚠️ {exc}", ephemeral=True)
+            status = getattr(exc, "http_status", None)
+            is_playlist = bool((match := SPOTIFY_URL.search(link)) and match.group(1) == "playlist")
+            if is_playlist and status in {401, 403}:
+                message = (
+                    "Spotify now requires user authorization for playlists. Configure "
+                    "`SPOTIFY_REFRESH_TOKEN` from the Spotify account that owns or collaborates "
+                    "on this playlist, then restart me."
+                )
+            else:
+                message = "I couldn't read that Spotify link. Verify the link and try again."
+                print(f"Spotify lookup failed: {exc}")
+            await interaction.followup.send(f"⚠️ {message}", ephemeral=True)
             return
         if not tracks:
             await interaction.followup.send("That link did not contain any playable tracks.", ephemeral=True)

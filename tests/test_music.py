@@ -1,4 +1,13 @@
-from cogs.music import MusicControls, Track, format_time, progress_bar
+import io
+from unittest.mock import patch
+
+from cogs.music import (
+    MusicControls,
+    SpotifyRefreshTokenAuth,
+    Track,
+    format_time,
+    progress_bar,
+)
 
 
 def test_format_time_handles_minutes_hours_and_unknown():
@@ -29,3 +38,16 @@ def test_music_controls_fit_discords_five_button_row_limit():
     controls = MusicControls(object())
 
     assert [item.row for item in controls.children] == [0, 0, 0, 0, 0, 1, 1]
+
+
+def test_spotify_user_token_is_refreshed_and_cached():
+    response = io.BytesIO(b'{"access_token":"new-token","expires_in":3600}')
+    response.__enter__ = lambda value: value
+    response.__exit__ = lambda *args: None
+    auth = SpotifyRefreshTokenAuth("client", "secret", "refresh")
+
+    with patch("urllib.request.urlopen", return_value=response) as request:
+        assert auth.get_access_token() == "new-token"
+        assert auth.get_access_token() == "new-token"
+
+    assert request.call_count == 1
