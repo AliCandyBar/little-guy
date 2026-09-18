@@ -1,4 +1,4 @@
-from cogs.music import Track, format_time, progress_bar
+from cogs.music import MusicControls, Track, format_time, progress_bar
 
 
 def test_format_time_handles_minutes_hours_and_unknown():
@@ -23,3 +23,9 @@ def test_track_query_uses_title_artist_unless_overridden():
     assert track.query == "Song Artist audio"
     custom = Track(title="Song", artists="Artist", duration=120, search_query="custom")
     assert custom.query == "custom"
+
+
+def test_music_controls_fit_discords_five_button_row_limit():
+    controls = MusicControls(object())
+
+    assert [item.row for item in controls.children] == [0, 0, 0, 0, 0, 1, 1]

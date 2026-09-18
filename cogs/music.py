@@ -101,11 +101,11 @@ class MusicControls(discord.ui.View):
     async def resume(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.run(interaction, "resume")
 
-    @discord.ui.button(emoji="⏭️", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(emoji="⏭️", style=discord.ButtonStyle.secondary, row=1)
     async def skip(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.run(interaction, "skip")
 
-    @discord.ui.button(emoji="🔀", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(emoji="🔀", style=discord.ButtonStyle.secondary, row=1)
     async def shuffle(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.run(interaction, "shuffle")
 
