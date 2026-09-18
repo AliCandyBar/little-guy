@@ -1,5 +1,30 @@
 This is a custom bot for the official Guild.AI Discord Server.
 
+## Voice music
+
+Little Guy can join a member's voice channel with `/join` and play Spotify
+tracks or playlists with `/play`. `/queue`, `/stop`, `/previous`, `/restart`,
+`/pause`, `/resume`, `/skip`, `/shuffle`, and `/leave` provide queue and
+playback controls. The now-playing message includes artwork, a live progress
+bar, the upcoming queue, and matching emoji buttons.
+
+Spotify supplies metadata; playable audio is resolved from YouTube because
+Spotify does not provide full audio streams to Discord bots. The host must have
+`ffmpeg` installed, and these environment variables must be configured:
+
+```text
+BOT_COMMANDS_CHANNEL_ID=123456789012345678
+SPOTIFY_CLIENT_ID=your_spotify_app_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_app_client_secret
+MUSIC_VOLUME=0.5
+```
+
+`BOT_COMMANDS_CHANNEL_ID` restricts `/join` to that channel. `MUSIC_VOLUME` is
+optional and accepts values from 0.0 to 1.0. In the Discord developer portal,
+the bot needs Connect and Speak permissions. It stays connected when the queue
+ends, leaves after 15 idle minutes, or leaves after the voice channel has had no
+human members for five minutes.
+
 ## Guild Agent Architect
 
 The `/agent-builder` command opens a private DM intake that helps a user design
