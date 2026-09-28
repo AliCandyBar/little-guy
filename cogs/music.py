@@ -32,7 +32,63 @@ except ImportError:  # Lets lightweight tooling import this module before instal
 SPOTIFY_URL = re.compile(
     r"https?://open\.spotify\.com/(?:intl-[^/]+/)?(track|playlist)/([A-Za-z0-9]+)"
 )
+YOUTUBE_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "music.youtube.com",
+    "youtu.be",
+}
 BAR_SIZE = 16
+
+
+def is_youtube_url(url: str) -> bool:
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and parsed.hostname in YOUTUBE_HOSTS
+
+
+def music_join_allowed(
+    commands_channel_id: int | None,
+    development_guild_id: int | None,
+    guild_id: int | None,
+    channel_id: int | None,
+) -> bool:
+    """Allow the configured channel, with an all-channel development bypass."""
+    if development_guild_id is not None and guild_id == development_guild_id:
+        return True
+    return commands_channel_id is None or channel_id == commands_channel_id
+
+
+def youtube_info_to_tracks(
+    info: dict, requester: str, maximum: int
+) -> list["Track"]:
+    entries = info.get("entries")
+    raw_tracks = list(entries) if entries is not None else [info]
+    tracks: list[Track] = []
+    for item in raw_tracks[:maximum]:
+        if not item or not item.get("id"):
+            continue
+        title = item.get("title") or "Unknown YouTube video"
+        if title in {"[Private video]", "[Deleted video]"}:
+            continue
+        video_url = item.get("webpage_url") or item.get("url")
+        if not isinstance(video_url, str) or not video_url.startswith(("http://", "https://")):
+            video_url = f"https://www.youtube.com/watch?v={item['id']}"
+        tracks.append(
+            Track(
+                title=title,
+                artists=item.get("uploader") or item.get("channel") or "YouTube",
+                duration=item.get("duration"),
+                artwork=item.get("thumbnail"),
+                requested_by=requester,
+                search_query=video_url,
+                webpage_url=video_url,
+            )
+        )
+    return tracks
 
 
 def format_time(seconds: float | None) -> str:
@@ -399,7 +455,14 @@ class Music(commands.Cog):
         self.players: dict[int, GuildPlayer] = {}
         channel_id = os.getenv("BOT_COMMANDS_CHANNEL_ID")
         self.commands_channel_id = int(channel_id) if channel_id else None
+        development_guild_id = os.getenv("MUSIC_DEVELOPMENT_GUILD_ID")
+        self.development_guild_id = (
+            int(development_guild_id) if development_guild_id else None
+        )
         self.volume = min(1.0, max(0.0, float(os.getenv("MUSIC_VOLUME", "0.5"))))
+        self.max_playlist_tracks = max(
+            1, int(os.getenv("MUSIC_MAX_PLAYLIST_TRACKS", "100"))
+        )
         self.spotify = None
         client_id = os.getenv("SPOTIFY_CLIENT_ID")
         client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
@@ -483,6 +546,36 @@ class Music(commands.Cog):
             if not item.get("is_local")
         ]
 
+    async def youtube_tracks(self, url: str, requester: str) -> list[Track]:
+        if not is_youtube_url(url):
+            raise ValueError("Please provide a valid YouTube video or playlist link.")
+
+        options = {
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": "in_playlist",
+            "skip_download": True,
+            "ignoreerrors": True,
+            "playlistend": self.max_playlist_tracks,
+        }
+
+        def extract() -> dict:
+            with yt_dlp.YoutubeDL(options) as ytdl:
+                info = ytdl.extract_info(url, download=False)
+                if not info:
+                    raise RuntimeError("YouTube returned no playable videos")
+                return info
+
+        info = await asyncio.get_running_loop().run_in_executor(None, extract)
+        return youtube_info_to_tracks(info, requester, self.max_playlist_tracks)
+
+    async def tracks_from_link(self, url: str, requester: str) -> list[Track]:
+        if SPOTIFY_URL.search(url):
+            return await self.spotify_tracks(url, requester)
+        if is_youtube_url(url):
+            return await self.youtube_tracks(url, requester)
+        raise ValueError("Please provide a Spotify or YouTube video/playlist link.")
+
     async def resolve_audio(self, track: Track) -> tuple[str, Track]:
         def extract() -> dict:
             with yt_dlp.YoutubeDL(self.ytdl_options) as ytdl:
@@ -504,7 +597,12 @@ class Music(commands.Cog):
     @app_commands.command(name="join", description="Summon Little Guy to your voice channel.")
     @app_commands.guild_only()
     async def join(self, interaction: discord.Interaction) -> None:
-        if self.commands_channel_id and interaction.channel_id != self.commands_channel_id:
+        if not music_join_allowed(
+            self.commands_channel_id,
+            self.development_guild_id,
+            interaction.guild_id,
+            interaction.channel_id,
+        ):
             await interaction.response.send_message(
                 f"Use this command in <#{self.commands_channel_id}>.", ephemeral=True
             )
@@ -555,7 +653,7 @@ class Music(commands.Cog):
             return
         await interaction.response.defer(ephemeral=True, thinking=True)
         try:
-            tracks = await self.spotify_tracks(link, interaction.user.display_name)
+            tracks = await self.tracks_from_link(link, interaction.user.display_name)
         except Exception as exc:
             status = getattr(exc, "http_status", None)
             is_playlist = bool((match := SPOTIFY_URL.search(link)) and match.group(1) == "playlist")
@@ -566,8 +664,8 @@ class Music(commands.Cog):
                     "on this playlist, then restart me."
                 )
             else:
-                message = "I couldn't read that Spotify link. Verify the link and try again."
-                print(f"Spotify lookup failed: {exc}")
+                message = "I couldn't read that Spotify or YouTube link. Verify the link and try again."
+                print(f"Music link lookup failed: {exc}")
             await interaction.followup.send(f"⚠️ {message}", ephemeral=True)
             return
         if not tracks:
@@ -577,8 +675,8 @@ class Music(commands.Cog):
         verb = "Added" if start else "Queued"
         await interaction.followup.send(f"{verb} {len(tracks)} song(s).", ephemeral=True)
 
-    @app_commands.command(name="play", description="Play a Spotify link, or resume paused music.")
-    @app_commands.describe(link="A Spotify song or playlist link (omit to resume)")
+    @app_commands.command(name="play", description="Play a Spotify or YouTube link, or resume music.")
+    @app_commands.describe(link="A Spotify or YouTube video/playlist link (omit to resume)")
     @app_commands.guild_only()
     async def play(self, interaction: discord.Interaction, link: str | None = None) -> None:
         if link:
@@ -586,8 +684,8 @@ class Music(commands.Cog):
             return
         await self.action_command(interaction, "resume")
 
-    @app_commands.command(name="queue", description="Add a Spotify song or playlist to the queue.")
-    @app_commands.describe(link="A Spotify song or playlist link")
+    @app_commands.command(name="queue", description="Add a Spotify or YouTube link to the queue.")
+    @app_commands.describe(link="A Spotify or YouTube video/playlist link")
     @app_commands.guild_only()
     async def queue_command(self, interaction: discord.Interaction, link: str) -> None:
         await self.add_link(interaction, link, start=True)

@@ -24,6 +24,7 @@ class LittleGuyBot(commands.Bot):
         await self.load_extension("cogs.bump")
         await self.load_extension("cogs.weekly_poll")
         await self.load_extension("cogs.guild_agent")
+        await self.load_extension("cogs.community_chat")
         await self.load_extension("cogs.music")
 
         self.add_view(TicketButton())

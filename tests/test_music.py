@@ -6,7 +6,10 @@ from cogs.music import (
     SpotifyRefreshTokenAuth,
     Track,
     format_time,
+    is_youtube_url,
+    music_join_allowed,
     progress_bar,
+    youtube_info_to_tracks,
 )
 
 
@@ -51,3 +54,53 @@ def test_spotify_user_token_is_refreshed_and_cached():
         assert auth.get_access_token() == "new-token"
 
     assert request.call_count == 1
+
+
+def test_youtube_url_validation_accepts_supported_video_and_playlist_hosts():
+    assert is_youtube_url("https://www.youtube.com/watch?v=abc123")
+    assert is_youtube_url("https://youtube.com/playlist?list=PL123")
+    assert is_youtube_url("https://music.youtube.com/playlist?list=PL123")
+    assert is_youtube_url("https://youtu.be/abc123")
+
+
+def test_youtube_url_validation_rejects_lookalike_and_non_http_urls():
+    assert not is_youtube_url("https://youtube.com.example.org/watch?v=abc123")
+    assert not is_youtube_url("ftp://youtube.com/playlist?list=PL123")
+    assert not is_youtube_url("not a URL")
+
+
+def test_development_guild_can_join_from_any_channel():
+    assert music_join_allowed(100, 200, 200, 999)
+
+
+def test_non_development_guild_still_requires_commands_channel():
+    assert music_join_allowed(100, 200, 300, 100)
+    assert not music_join_allowed(100, 200, 300, 999)
+
+
+def test_youtube_playlist_preserves_order_and_skips_private_videos():
+    playlist = {
+        "entries": [
+            {
+                "id": "first",
+                "title": "First song",
+                "channel": "Channel One",
+                "duration": 120,
+                "url": "https://www.youtube.com/watch?v=first",
+            },
+            {"id": "private", "title": "[Private video]"},
+            {
+                "id": "second",
+                "title": "Second song",
+                "uploader": "Channel Two",
+                "duration": 180,
+                "url": "second",
+            },
+        ]
+    }
+
+    tracks = youtube_info_to_tracks(playlist, "Requester", 100)
+
+    assert [track.title for track in tracks] == ["First song", "Second song"]
+    assert [track.artists for track in tracks] == ["Channel One", "Channel Two"]
+    assert tracks[1].query == "https://www.youtube.com/watch?v=second"
