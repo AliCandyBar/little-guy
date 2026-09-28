@@ -31,6 +31,19 @@ class CommunityChatTests(unittest.TestCase):
             ),
             123456789,
         )
+        self.assertEqual(
+            greeter_member_id(
+                "Hey <@123456789>! We are so glad you joined **Guild.ai!**"
+            ),
+            123456789,
+        )
+        self.assertEqual(
+            greeter_member_id(
+                "Hey <@123456789>! We are so glad you joined **Guild.ai**!\n"
+                "https://i.imgur.com/PCTYgeY.gif"
+            ),
+            123456789,
+        )
         self.assertIsNone(greeter_member_id("Welcome <@123456789>"))
 
     def test_execution_requests_are_rejected(self):

@@ -145,7 +145,8 @@ GREETER_BOT_ID=123456789012345678
 ```
 
 In the welcome channel, Little Guy waits for the configured greeter bot to send
-`Hey @user! We are so glad you joined **Guild.AI**!`. It then welcomes that
+`Hey @user! We are so glad you joined **Guild.ai**!` followed by the configured
+Imgur welcome GIF. It then welcomes that
 mentioned member and asks one varied question about their projects, agents,
 Guild.AI assistance, programming, or agentic-AI usage. Each member is recorded
 after the greeter trigger so duplicate greeter messages do not produce duplicate

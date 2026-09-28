@@ -28,7 +28,8 @@ SILENCE_REQUEST = re.compile(
 
 GREETER_MESSAGE = re.compile(
     r"^Hey\s+<@!?(\d+)>!\s+We\s+are\s+so\s+glad\s+you\s+joined\s+"
-    r"\*\*Guild\.AI\*\*!$",
+    r"\*\*Guild\.AI(?:!)?\*\*(?:!)?"
+    r"(?:\r?\nhttps://i\.imgur\.com/PCTYgeY\.gif)?$",
     re.IGNORECASE,
 )
 
