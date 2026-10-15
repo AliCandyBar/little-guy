@@ -26,6 +26,7 @@ class LittleGuyBot(commands.Bot):
         await self.load_extension("cogs.guild_agent")
         await self.load_extension("cogs.community_chat")
         await self.load_extension("cogs.music")
+        await self.load_extension("cogs.hackathon")
 
         self.add_view(TicketButton())
         synced = await self.tree.sync()

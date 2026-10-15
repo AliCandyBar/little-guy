@@ -1,5 +1,38 @@
 This is a custom bot for the official Guild.AI Discord Server.
 
+## Hackathons
+
+Staff members can create, preview, edit, start, end, and announce winners for
+hackathons with `/hackathon`. Members can create, join, and delete their own
+teams with `/hackathon team`. IDs, teams, announcements, and counters are kept
+separately for each Discord server. Dates entered in the modal use
+`YYYY-MM-DD HH:MM to YYYY-MM-DD HH:MM` in the `America/Los_Angeles` timezone;
+embeds also use Discord timestamps so every viewer sees their local time.
+An optional image can be uploaded directly with `/hackathon create`; no image
+URL is required. `/hackathon image` adds or replaces the image on an existing
+hackathon. Images are limited to 8 MB and stored in that server's database.
+
+Only the two explicitly configured servers can use these commands. Use separate
+category IDs to ensure testing cannot create channels in the main server:
+
+```text
+HACKATHON_MAIN_GUILD_ID=123456789012345678
+HACKATHON_MAIN_CATEGORY_ID=123456789012345678
+HACKATHON_TEST_GUILD_ID=234567890123456789
+HACKATHON_TEST_CATEGORY_ID=234567890123456789
+HACKATHON_MAIN_DATABASE=data/hackathons_main.db
+HACKATHON_TEST_DATABASE=data/hackathons_test.db
+```
+
+The two database paths must be different. This keeps test records physically
+separate from production records in addition to the server-level checks.
+
+The bot needs View Channel, Send Messages, Embed Links, Read Message History,
+and Manage Channels permissions. `STAFF_ROLE_ID` controls staff commands and
+`VERIFIED_ROLE_ID` is pinged for starts and winner announcements. The database
+is stored under `data/` by default and is preserved by the existing container
+volume.
+
 ## Voice music
 
 Little Guy can join a member's voice channel with `/join` and play Spotify
